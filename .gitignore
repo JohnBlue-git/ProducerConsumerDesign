@@ -1,0 +1,23 @@
+# Build outputs
+*.o
+*.obj
+*.out
+*.exe
+*.a
+*.so
+*.dll
+*.dylib
+
+# CMake / build directories
+build/
+cmake-build-*/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Demo executables
+producer_consumer_que
+producer_consumer_rb
