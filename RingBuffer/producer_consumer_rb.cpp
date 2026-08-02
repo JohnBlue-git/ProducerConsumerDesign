@@ -2,11 +2,11 @@
 #include <vector>
 #include <thread>
 #include <chrono>
-#include <atomic>
 
 #include "ring_buffer.hpp"
+#include "../producer_counter.hpp"
 
-void producer(RingBuffer& rb, int producer_id, int start_value, int items_per_producer, std::atomic<int>& producers_left) {
+void producer(RingBuffer& rb, int producer_id, int start_value, int items_per_producer, ProducerCountTracker& producers_left) {
     for (int i = 0; i < items_per_producer; ++i) {
         int item = start_value + i;
 
@@ -20,7 +20,7 @@ void producer(RingBuffer& rb, int producer_id, int start_value, int items_per_pr
         std::printf("[Producer %d] Pushed: %d\n", producer_id, item);
     }
 
-    if (producers_left.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+    if (producers_left.mark_finished()) {
         rb.close();
     }
 }
@@ -45,7 +45,7 @@ int main() {
     RingBuffer rb(BUFFER_SIZE);
     std::vector<std::thread> producers;
     std::vector<std::thread> consumers;
-    std::atomic<int> producers_left(PRODUCER_COUNT);
+    ProducerCountTracker producers_left(PRODUCER_COUNT);
 
     for (int i = 0; i < PRODUCER_COUNT; ++i) {
         int start_value = i * ITEMS_PER_PRODUCER + 1;

@@ -6,26 +6,33 @@ This project demonstrates three Producer-Consumer designs in C++:
 - Unbounded Queue (queue without size limit)
 - Semaphore-based Ring Buffer
 
-All versions are thread-safe. For MPMC shutdown, producer counting is handled in application code (.cpp) with `std::atomic<int> producers_left(PRODUCER_COUNT);`.
+All versions are thread-safe. For MPMC shutdown, producer counting is handled by the shared utility in `producer_counter.hpp` through `ProducerCountTracker`.
 
 ## Project Structure
 
 ```text
 ProducerConsumerDesign/
-├── producer_consumer_rb.cpp    # Producer/Consumer demo using RingBuffer
-├── producer_consumer_que.cpp   # Producer/Consumer demo using QueBuffer
-├── producer_consumer_sem.cpp   # Producer/Consumer demo using semaphore + ring buffer
-├── ring_buffer.hpp             # Fixed-size blocking ring buffer
-├── queue_buffer.hpp            # Unbounded blocking queue
-├── semaphore_buffer.hpp        # Fixed-size semaphore-based ring buffer
-└── README.md
+├── README.md
+├── producer_counter.hpp
+├── QueueBuffer/
+│   ├── producer_consumer_que.cpp
+│   └── queue_buffer.hpp
+├── RingBuffer/
+│   ├── producer_consumer_rb.cpp
+│   └── ring_buffer.hpp
+└── SemaphoreBuffer/
+    ├── producer_consumer_sem.cpp
+    └── semaphore_buffer.hpp
 ```
+
+Each design folder contains its own implementation source, while the shared shutdown helper lives at the repository root.
 
 ## Design 1: Ring Buffer (Fixed Size)
 
 File:
 
-- `ring_buffer.hpp`
+- `RingBuffer/ring_buffer.hpp`
+- `RingBuffer/producer_consumer_rb.cpp`
 
 Key behaviors:
 
@@ -51,7 +58,8 @@ When to use:
 
 File:
 
-- `queue_buffer.hpp`
+- `QueueBuffer/queue_buffer.hpp`
+- `QueueBuffer/producer_consumer_que.cpp`
 
 Key behaviors:
 
@@ -76,30 +84,30 @@ When to use:
 
 File:
 
-- `semaphore_buffer.hpp`
-- `producer_consumer_sem.cpp`
+- `SemaphoreBuffer/semaphore_buffer.hpp`
+- `SemaphoreBuffer/producer_consumer_sem.cpp`
 
 Key behaviors:
 
-- Uses fixed-size circular storage with three semaphores:
-	- `slots`: available capacity for producers.
-	- `items`: available produced items for consumers.
-	- `mtx`: binary semaphore for critical section protection.
-- Producer blocks when ring buffer is full (`slots.acquire()`).
-- Consumer blocks when ring buffer is empty (`items.acquire()`).
-- Last producer calls `close(consumer_count)` to wake blocked consumers for clean exit.
+- Uses a fixed-size circular buffer synchronized with three semaphores:
+	- `sem_not_full`: counts the number of free positions, so producers block when the buffer is full.
+	- `sem_not_empty`: counts the number of available values, so consumers block when the buffer is empty.
+	- `mtx`: provides mutual exclusion around the shared ring-buffer state.
+- Producers wait on `sem_not_full.acquire()` before writing and release it after a value is stored.
+- Consumers wait on `sem_not_empty.acquire()` before reading and release it after a value is consumed.
+- The last producer calls `close(consumer_count)` so waiting consumers are released and can exit cleanly.
 
 When to use:
 
 - You want bounded memory with explicit semaphore synchronization.
 - You are targeting C++20 and want a condition-variable-free synchronization variant.
 
-## Producer/Consumer Flow in All Demos
+## Design: Shared Shutdown and Flow Pattern
 
 1. Main creates shared producer counter:
 
 ```cpp
-std::atomic<int> producers_left(PRODUCER_COUNT);
+ProducerCountTracker producers_left(PRODUCER_COUNT);
 ```
 
 2. Each producer pushes items in sequence.
@@ -110,47 +118,47 @@ std::atomic<int> producers_left(PRODUCER_COUNT);
 
 This avoids hard-coding consumer loop count and keeps producer-lifecycle logic outside `*Buffer` classes.
 
-## MPMC Shutdown Pattern (in .cpp)
-
-All demos use this producer-count coordination pattern in application code:
+All demos use the same producer-count coordination pattern in application code:
 
 ```cpp
-if (producers_left.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-	// RingBuffer / QueBuffer
-	rb.close();
+ProducerCountTracker producers_left(PRODUCER_COUNT);
 
-	// Semaphore RingBuffer
-	// rb.close(CONSUMER_COUNT);
+if (producers_left.mark_finished()) {
+    // RingBuffer / QueBuffer
+    rb.close();
+
+    // Semaphore RingBuffer
+    // rb.close(CONSUMER_COUNT);
 }
 ```
 
 Why this works:
 
-- `fetch_sub` returns the previous value.
-- If the previous value is `1`, current producer is the last producer.
-- Only that last producer calls `close(...)`, so consumers drain remaining items before exiting.
+- `mark_finished()` decrements the shared counter and reports whether this producer was the last one.
+- If the return value is `true`, the current producer is the final producer.
+- Only that last producer calls `close(...)`, so consumers drain the remaining items before exiting.
 
 ## Build and Run
 
 Build Queue version:
 
 ```bash
-g++ -std=c++17 -pthread producer_consumer_que.cpp -o producer_consumer_que
-./producer_consumer_que
+g++ -std=c++17 -pthread QueueBuffer/producer_consumer_que.cpp -o QueueBuffer/producer_consumer_que
+./QueueBuffer/producer_consumer_que
 ```
 
 Build Ring Buffer version:
 
 ```bash
-g++ -std=c++17 -pthread producer_consumer_rb.cpp -o producer_consumer_rb
-./producer_consumer_rb
+g++ -std=c++17 -pthread RingBuffer/producer_consumer_rb.cpp -o RingBuffer/producer_consumer_rb
+./RingBuffer/producer_consumer_rb
 ```
 
 Build Semaphore Ring Buffer version (C++20):
 
 ```bash
-g++ -std=c++20 -pthread producer_consumer_sem.cpp -o producer_consumer_sem
-./producer_consumer_sem
+g++ -std=c++20 -pthread SemaphoreBuffer/producer_consumer_sem.cpp -o SemaphoreBuffer/producer_consumer_sem
+./SemaphoreBuffer/producer_consumer_sem
 ```
 
 ## Summary
@@ -158,4 +166,4 @@ g++ -std=c++20 -pthread producer_consumer_sem.cpp -o producer_consumer_sem
 - `RingBuffer`: fixed capacity, stronger memory control, producer can block when full.
 - `QueBuffer`: unbounded growth, simpler producer path, consumer blocks only when empty.
 - `Semaphore RingBuffer`: fixed capacity with semaphore-based coordination (C++20).
-- All support clean termination through `close(...)`, and MPMC producer coordination is implemented in `.cpp` via `std::atomic<int> producers_left(PRODUCER_COUNT);`.
+- All support clean termination through `close(...)`, and MPMC producer coordination is implemented through the shared helper in `producer_counter.hpp`.

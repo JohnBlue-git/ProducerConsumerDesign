@@ -14,8 +14,13 @@ private:
     size_t count = 0;
     bool done = false;
 
-    std::counting_semaphore<> sem_not_full;  // Wait if buffer is full
-    std::counting_semaphore<> sem_not_empty; // Wait if buffer is empty
+    // Counts free slots in the ring buffer. Producers wait here when the buffer is full.
+    std::counting_semaphore<> sem_not_full;
+
+    // Counts available items in the ring buffer. Consumers wait here when the buffer is empty.
+    std::counting_semaphore<> sem_not_empty;
+
+    // Guards access to the shared ring-buffer state.
     std::binary_semaphore mtx;
 
 public:
