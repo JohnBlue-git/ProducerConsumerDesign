@@ -1,10 +1,11 @@
 # ProducerConsumerDesign
 
-This project demonstrates three Producer-Consumer designs in C++:
+This project demonstrates four Producer-Consumer designs in C++:
 
 - Fixed-size Ring Buffer
 - Unbounded Queue (queue without size limit)
 - Semaphore-based Ring Buffer
+- Folly-based MPMC Queue
 
 All versions are thread-safe. For MPMC shutdown, producer counting is handled by the shared utility in `producer_counter.hpp` through `ProducerCountTracker`.
 
@@ -20,9 +21,12 @@ ProducerConsumerDesign/
 ├── RingBuffer/
 │   ├── producer_consumer_rb.cpp
 │   └── ring_buffer.hpp
-└── SemaphoreBuffer/
-    ├── producer_consumer_sem.cpp
-    └── semaphore_buffer.hpp
+├── SemaphoreBuffer/
+│   ├── producer_consumer_sem.cpp
+│   └── semaphore_buffer.hpp
+└── MPMCQueue/
+    ├── producer_consumer_mpmc.cpp
+    └── mpmc_queue.hpp
 ```
 
 Each design folder contains its own implementation source, while the shared shutdown helper lives at the repository root.
@@ -102,6 +106,61 @@ When to use:
 - You want bounded memory with explicit semaphore synchronization.
 - You are targeting C++20 and want a condition-variable-free synchronization variant.
 
+## Design 4: Folly MPMC Queue Comparison
+
+This design adds a modern queue option based on Folly's multi-producer, multi-consumer queue implementations. It compares three approaches:
+
+- `std::queue` + `std::mutex`
+- `folly::ProducerConsumerQueue`
+- `folly::MPMCQueue`
+
+Why Folly is attractive here is that its queue implementations are built around lock-free or wait-free style synchronization techniques instead of relying on a single global mutex for every enqueue and dequeue. In practical terms, that means the implementation often uses techniques such as atomic state updates, carefully partitioned read/write indices, and buffer slots that can be consumed without forcing every thread through the same lock. Those techniques reduce the number of blocking points and help multiple producers and consumers make progress in parallel. A mutex-protected `std::queue` is simpler, but it forces access through one lock, so contention grows quickly as the number of threads increases.
+
+### Dependency installation
+
+Ubuntu / Debian:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y build-essential cmake ninja-build pkg-config \
+  libdouble-conversion-dev libgoogle-glog-dev libgflags-dev libevent-dev \
+  libboost-all-dev libfmt-dev libssl-dev libzstd-dev libsnappy-dev \
+  liblz4-dev libunwind-dev
+```
+
+Folly from source:
+
+```bash
+cd /tmp
+rm -rf fast_float folly
+
+git clone https://github.com/fastfloat/fast_float.git
+cd fast_float
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j"$(nproc)"
+sudo cmake --install build
+
+cd /tmp
+git clone https://github.com/facebook/folly.git
+cd folly
+git checkout v2024.11.04.00
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF
+cmake --build build -j"$(nproc)"
+sudo cmake --install build
+```
+
+### Comparison table
+
+| Design | Concurrency model | Complexity | Throughput under heavy contention | Best fit |
+| --- | --- | --- | --- | --- |
+| `std::queue` + `std::mutex` | Single lock around shared container | Low | Lower | Simple educational and low-contention code |
+| `folly::ProducerConsumerQueue` | Single producer / single consumer | Medium | High for 1P1C | Streaming pipelines with one writer and one reader |
+| `folly::MPMCQueue` | Multiple producers / multiple consumers | Medium/High | Highest for MPMC | High-throughput concurrent systems |
+
+### Recommendation
+
+If the goal is to demonstrate a modern and scalable producer-consumer design, `folly::MPMCQueue` is the best choice. If the workload is simple and the priority is readability, `std::queue` + `std::mutex` is still a strong starting point. If the system is strictly one-producer/one-consumer, `folly::ProducerConsumerQueue` is the more specialized and efficient option.
+
 ## Design: Shared Shutdown and Flow Pattern
 
 1. Main creates shared producer counter:
@@ -161,9 +220,21 @@ g++ -std=c++20 -pthread SemaphoreBuffer/producer_consumer_sem.cpp -o SemaphoreBu
 ./SemaphoreBuffer/producer_consumer_sem
 ```
 
+Build the Folly-backed MPMC demo:
+
+```bash
+g++ -std=c++17 -pthread -DPRODUCER_CONSUMER_USE_FOLLY \
+  MPMCQueue/producer_consumer_mpmc.cpp -o MPMCQueue/producer_consumer_mpmc \
+  $(pkg-config --cflags --libs --static libfolly)
+./MPMCQueue/producer_consumer_mpmc
+```
+
+If Folly is not available and the build is attempted with the Folly flag enabled, the compile stops immediately with a clear error message telling you to install Folly or build without the flag.
+
 ## Summary
 
 - `RingBuffer`: fixed capacity, stronger memory control, producer can block when full.
 - `QueBuffer`: unbounded growth, simpler producer path, consumer blocks only when empty.
 - `Semaphore RingBuffer`: fixed capacity with semaphore-based coordination (C++20).
+- `MPMCQueue`: modern Folly-backed option for multi-producer, multi-consumer workloads.
 - All support clean termination through `close(...)`, and MPMC producer coordination is implemented through the shared helper in `producer_counter.hpp`.
