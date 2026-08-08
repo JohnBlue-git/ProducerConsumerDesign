@@ -160,6 +160,20 @@ g++ -std=c++17 -O2 -pthread -IMoodyCamelQueue MoodyCamelQueue/producer_consumer_
 ./MoodyCamelQueue/moody_demo
 ```
 
+### Benchmark Results (quick summary)
+
+Automated benchmarks were run with unified parameters: `PRODUCER_COUNT=4`, `CONSUMER_COUNT=4`, `ITEMS_PER_PRODUCER=20000`, `BUFFER_SIZE=1024`.
+
+| Implementation | Runtime (s) | Peak RSS (bytes) | Notes |
+| --- | ---: | ---: | --- |
+| moodycamel (ConcurrentQueue) | 181.67 | 4,218,880 | Non-blocking adapter |
+| queuebuffer (mutex queue) | 181.70 | 4,218,880 | Std::queue + mutex |
+| ringbuffer (SPSC ring) | 181.71 | 4,210,688 | Ring buffer implementation |
+| semaphore (SemRingBuffer) | skipped | - | Build or runtime skipped |
+| mpmc (Folly MPMCQueue) | skipped | - | Build or runtime skipped (requires Folly) |
+
+Full JSON results are available at `tests/results.json`.
+
 ### Comparison table
 
 | Design | Concurrency model | Complexity | Throughput under heavy contention | Best fit |

@@ -6,6 +6,7 @@
 
 #include "semaphore_buffer.hpp"
 #include "../producer_counter.hpp"
+#include "../logging.hpp"
 
 void producer(
     SemRingBuffer& rb,
@@ -44,11 +45,25 @@ void consumer(SemRingBuffer& rb, int consumer_id) {
     }
 }
 
-int main() {
-    const size_t BUFFER_SIZE = 5;
-    const int PRODUCER_COUNT = 3;
-    const int CONSUMER_COUNT = 2;
-    const int ITEMS_PER_PRODUCER = 10;
+int main(int argc, char** argv) {
+    size_t BUFFER_SIZE = 5;
+    int PRODUCER_COUNT = 3;
+    int CONSUMER_COUNT = 2;
+    int ITEMS_PER_PRODUCER = 10;
+
+    if (argc >= 4) {
+        PRODUCER_COUNT = std::stoi(argv[1]);
+        CONSUMER_COUNT = std::stoi(argv[2]);
+        ITEMS_PER_PRODUCER = std::stoi(argv[3]);
+    }
+    if (argc >= 5) {
+        BUFFER_SIZE = static_cast<size_t>(std::stoul(argv[4]));
+    }
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "--quiet") {
+            pc::enable_logging.store(false, std::memory_order_relaxed);
+        }
+    }
 
     SemRingBuffer rb(BUFFER_SIZE);
     std::vector<std::thread> producers;

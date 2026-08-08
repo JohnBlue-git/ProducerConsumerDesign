@@ -6,6 +6,7 @@
 
 #include "mpmc_queue.hpp"
 #include "../producer_counter.hpp"
+#include "../logging.hpp"
 
 namespace {
 
@@ -13,7 +14,7 @@ void producer(mpmc_demo::MPMCQueueAdapter& queue, int producer_id, int start_val
               int items_per_producer, ProducerCountTracker& producers_left) {
     for (int i = 0; i < items_per_producer; ++i) {
         int item = start_value + i;
-        std::this_thread::sleep_for(std::chrono::milliseconds(6));
+        // std::this_thread::sleep_for(std::chrono::milliseconds(6));
 
         if (!queue.push(item)) {
             break;
@@ -30,16 +31,27 @@ void consumer(mpmc_demo::MPMCQueueAdapter& queue, int consumer_id) {
     int item = 0;
     while (queue.pop(item)) {
         std::printf("[Consumer %d] Popped: %d\n", consumer_id, item);
-        std::this_thread::sleep_for(std::chrono::milliseconds(9));
+        // std::this_thread::sleep_for(std::chrono::milliseconds(9));
     }
 }
 
 } // namespace
 
-int main() {
-    constexpr int PRODUCER_COUNT = 3;
-    constexpr int CONSUMER_COUNT = 2;
-    constexpr int ITEMS_PER_PRODUCER = 10;
+int main(int argc, char** argv) {
+    int PRODUCER_COUNT = 3;
+    int CONSUMER_COUNT = 2;
+    int ITEMS_PER_PRODUCER = 10;
+
+    if (argc >= 4) {
+        PRODUCER_COUNT = std::stoi(argv[1]);
+        CONSUMER_COUNT = std::stoi(argv[2]);
+        ITEMS_PER_PRODUCER = std::stoi(argv[3]);
+    }
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "--quiet") {
+            pc::enable_logging.store(false, std::memory_order_relaxed);
+        }
+    }
 
     mpmc_demo::MPMCQueueAdapter queue;
     std::vector<std::thread> producers;

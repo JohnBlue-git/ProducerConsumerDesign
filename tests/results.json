@@ -1,0 +1,26 @@
+{
+  "moodycamel": {
+    "returncode": 0,
+    "runtime_s": 181.60817790031433,
+    "cpu_s": 0.0,
+    "peak_rss_bytes": 4173824
+  },
+  "queuebuffer": {
+    "returncode": 0,
+    "runtime_s": 181.66965866088867,
+    "cpu_s": 0.0,
+    "peak_rss_bytes": 4251648
+  },
+  "ringbuffer": {
+    "returncode": 0,
+    "runtime_s": 181.82213377952576,
+    "cpu_s": 0.0,
+    "peak_rss_bytes": 3944448
+  },
+  "semaphore": {
+    "skipped": true
+  },
+  "mpmc": {
+    "skipped": true
+  }
+}
