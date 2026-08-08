@@ -9,6 +9,17 @@ import psutil
 BUILD_DIR = "build"
 os.makedirs(BUILD_DIR, exist_ok=True)
 
+def get_pkg_config(name):
+    proc = subprocess.run(
+        ["pkg-config", "--cflags", "--libs", "--static", name],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    return proc.stdout.strip() if proc.returncode == 0 else None
+
+FOLLY_PKG_CONFIG = get_pkg_config("libfolly")
+
 TARGETS = {
     "moodycamel": {
         "src": "MoodyCamelQueue/producer_consumer_moodycamel.cpp",
@@ -32,14 +43,14 @@ TARGETS = {
     },
     "mpmc": {
         "src": "MPMCQueue/producer_consumer_mpmc.cpp",
-        "cflags": "",
+        "cflags": f"{FOLLY_PKG_CONFIG} -lfmt" if FOLLY_PKG_CONFIG else "",
         "out": f"{BUILD_DIR}/mpmc_demo",
     },
 }
 
 
 def build_target(name, info):
-    cmd = f"g++ -std=c++17 -O2 -pthread {info['cflags']} {info['src']} -o {info['out']}"
+    cmd = f"g++ -std=c++17 -O2 -pthread {info['src']} {info['cflags']} -o {info['out']}"
     print("Building:", cmd)
     proc = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if proc.returncode != 0:
@@ -50,10 +61,14 @@ def build_target(name, info):
 
 def run_and_measure(cmd, timeout=None):
     start = time.time()
-    p = subprocess.Popen(shlex.split(cmd))
+    p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     proc = psutil.Process(p.pid)
     peak_rss = 0
-    start_cpu = sum(proc.cpu_times()[:2])
+    try:
+        start_cpu = sum(proc.cpu_times()[:2])
+    except psutil.NoSuchProcess:
+        start_cpu = 0.0
+    end_cpu = start_cpu
     try:
         while True:
             if p.poll() is not None:
@@ -62,6 +77,7 @@ def run_and_measure(cmd, timeout=None):
                 mem = proc.memory_info().rss
                 if mem > peak_rss:
                     peak_rss = mem
+                end_cpu = sum(proc.cpu_times()[:2])
             except psutil.NoSuchProcess:
                 break
             time.sleep(0.05)
@@ -69,11 +85,10 @@ def run_and_measure(cmd, timeout=None):
         p.kill()
         raise
     end = time.time()
-    end_cpu = 0.0
     try:
         end_cpu = sum(proc.cpu_times()[:2])
     except Exception:
-        end_cpu = 0.0
+        pass
     return {
         "returncode": p.returncode,
         "runtime_s": end - start,

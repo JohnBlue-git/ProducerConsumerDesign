@@ -19,14 +19,14 @@ void producer(
     for (int i = 0; i < items_per_producer; ++i) {
         int item = start_value + i;
 
-        // Simulate manufacturing time
-        std::this_thread::sleep_for(std::chrono::milliseconds(6));
+        // Simulate manufacturing time (disabled for benchmarks)
+        // std::this_thread::sleep_for(std::chrono::milliseconds(6));
 
         // Push to ring buffer (semaphore version)
         if (!rb.push(item)) {
             break;
         }
-        std::printf("[Producer %d] Pushed: %d\n", producer_id, item);
+        PC_PRINT("[Producer %d] Pushed: %d\n", producer_id, item);
     }
 
     if (producers_left.mark_finished()) {
@@ -38,10 +38,10 @@ void consumer(SemRingBuffer& rb, int consumer_id) {
     int item = 0;
     while (rb.pop(item)) {
         // Pop from ring buffer (semaphore version)
-        std::printf("[Consumer %d] Popped: %d\n", consumer_id, item);
+        PC_PRINT("[Consumer %d] Popped: %d\n", consumer_id, item);
 
-        // Simulate processing time
-        std::this_thread::sleep_for(std::chrono::milliseconds(9));
+        // Simulate processing time (disabled for benchmarks)
+        // std::this_thread::sleep_for(std::chrono::milliseconds(9));
     }
 }
 

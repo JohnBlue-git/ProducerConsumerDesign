@@ -10,6 +10,9 @@ namespace mpmc_demo {
 
 class MPMCQueueAdapter {
 public:
+    explicit MPMCQueueAdapter(size_t capacity = 1024)
+        : queue_(capacity) {}
+
     bool push(int item) {
         return queue_.write(item);
     }

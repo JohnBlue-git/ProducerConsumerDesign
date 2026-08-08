@@ -18,7 +18,7 @@ void producer(RingBuffer& rb, int producer_id, int start_value, int items_per_pr
         if (!rb.push(item)) {
             break;
         }
-        std::printf("[Producer %d] Pushed: %d\n", producer_id, item);
+        PC_PRINT("[Producer %d] Pushed: %d\n", producer_id, item);
     }
 
     if (producers_left.mark_finished()) {
@@ -30,7 +30,7 @@ void consumer(RingBuffer& rb, int consumer_id) {
     int item = 0;
     while (rb.pop(item)) {
         // Pop from ring buffer
-        std::printf("[Consumer %d] Popped: %d\n", consumer_id, item);
+        PC_PRINT("[Consumer %d] Popped: %d\n", consumer_id, item);
         
         // Simulate processing time (disabled for benchmarks)
         // std::this_thread::sleep_for(std::chrono::milliseconds(9));

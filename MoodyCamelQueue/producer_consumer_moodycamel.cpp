@@ -17,7 +17,7 @@ void producer(moody_demo::ConcurrentQueueAdapter& queue, int producer_id, int st
         // std::this_thread::sleep_for(std::chrono::milliseconds(6));
 
         queue.push_for_producer(producer_id, item);
-        std::printf("[Producer %d] Pushed: %d\n", producer_id, item);
+        PC_PRINT("[Producer %d] Pushed: %d\n", producer_id, item);
     }
 
     if (producers_left.mark_finished()) {
@@ -29,7 +29,7 @@ void consumer(moody_demo::ConcurrentQueueAdapter& queue, int consumer_id, Produc
     int item = 0;
     while (true) {
         if (queue.pop(item)) {
-            std::printf("[Consumer %d] Popped: %d\n", consumer_id, item);
+            PC_PRINT("[Consumer %d] Popped: %d\n", consumer_id, item);
             // std::this_thread::sleep_for(std::chrono::milliseconds(9));
             continue;
         }
