@@ -149,6 +149,17 @@ cmake --build build -j"$(nproc)"
 sudo cmake --install build
 ```
 
+### MoodyCamel demo (non-blocking)
+
+This repo includes a MoodyCamel-style demo using `moodycamel::ConcurrentQueue` placed under `MoodyCamelQueue/`. The demo keeps the queue non-blocking and uses `ProducerCountTracker` for clean shutdown.
+
+Build and run:
+
+```bash
+g++ -std=c++17 -O2 -pthread -IMoodyCamelQueue MoodyCamelQueue/producer_consumer_moodycamel.cpp -o MoodyCamelQueue/moody_demo
+./MoodyCamelQueue/moody_demo
+```
+
 ### Comparison table
 
 | Design | Concurrency model | Complexity | Throughput under heavy contention | Best fit |

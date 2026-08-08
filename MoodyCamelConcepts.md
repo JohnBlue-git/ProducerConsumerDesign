@@ -60,6 +60,10 @@ While both are high-performance, multi-producer/multi-consumer (MPMC) lock-free 
 * You want maximum multi-producer throughput and can tolerate **relaxed cross-producer ordering**.
 * You want a standalone, dependency-free `concurrentqueue.h` header file you can drop into any C++ project.
 
+### Note on blocking vs non-blocking
+
+`moodycamel::ConcurrentQueue` is a non-blocking, lock-free queue providing `enqueue` and `try_dequeue` operations. It does not perform blocking waits by itself — if your application needs consumers to block while waiting for items, either use the separate `BlockingConcurrentQueue` (`blockingconcurrentqueue.h`) or implement an external coordination mechanism (such as a producer counter + brief backoff). The demo in this repo keeps the moodycamel queue fully non-blocking and uses `ProducerCountTracker` plus short sleeps to terminate consumers cleanly once all producers finish.
+
 
 * **Choose `folly::MPMCQueue` if:**
 * You require **strict global FIFO ordering** (e.g., event logs or strict task scheduling).
