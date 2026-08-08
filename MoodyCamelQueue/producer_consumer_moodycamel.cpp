@@ -4,9 +4,9 @@
 #include <thread>
 #include <vector>
 
-#include "../producer_counter.hpp"
+#include "../include/producer_counter.hpp"
 #include "concurrent_queue_adapter.hpp"
-#include "../logging.hpp"
+#include "../include/logging.hpp"
 
 namespace {
 

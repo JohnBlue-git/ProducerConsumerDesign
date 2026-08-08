@@ -1,32 +1,32 @@
 {
   "moodycamel": {
     "returncode": 0,
-    "runtime_s": 0.05089521408081055,
+    "runtime_s": 0.050881385803222656,
     "cpu_s": 0.0,
     "peak_rss_bytes": 319488
   },
   "queuebuffer": {
     "returncode": 0,
-    "runtime_s": 0.05179309844970703,
-    "cpu_s": 0.0,
-    "peak_rss_bytes": 1564672
+    "runtime_s": 0.10125422477722168,
+    "cpu_s": 0.06,
+    "peak_rss_bytes": 3993600
   },
   "ringbuffer": {
     "returncode": 0,
-    "runtime_s": 0.05288362503051758,
+    "runtime_s": 0.052510738372802734,
     "cpu_s": 0.0,
-    "peak_rss_bytes": 1851392
+    "peak_rss_bytes": 3522560
   },
   "semaphore": {
     "returncode": 0,
-    "runtime_s": 0.050911903381347656,
+    "runtime_s": 0.05083966255187988,
     "cpu_s": 0.0,
-    "peak_rss_bytes": 307200
+    "peak_rss_bytes": 319488
   },
   "mpmc": {
     "returncode": 0,
-    "runtime_s": 0.0509343147277832,
+    "runtime_s": 0.051038503646850586,
     "cpu_s": 0.0,
-    "peak_rss_bytes": 16384
+    "peak_rss_bytes": 331776
   }
 }

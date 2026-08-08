@@ -5,8 +5,8 @@
 #include <vector>
 
 #include "semaphore_buffer.hpp"
-#include "../producer_counter.hpp"
-#include "../logging.hpp"
+#include "../include/producer_counter.hpp"
+#include "../include/logging.hpp"
 
 void producer(
     SemRingBuffer& rb,

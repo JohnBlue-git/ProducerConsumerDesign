@@ -4,8 +4,8 @@
 #include <chrono>
 
 #include "queue_buffer.hpp"
-#include "../producer_counter.hpp"
-#include "../logging.hpp"
+#include "../include/producer_counter.hpp"
+#include "../include/logging.hpp"
 
 void producer(QueBuffer& rb, int producer_id, int start_value, int items_per_producer, ProducerCountTracker& producers_left) {
     for (int i = 0; i < items_per_producer; ++i) {
