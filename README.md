@@ -166,11 +166,11 @@ Automated benchmarks were run with unified parameters: `PRODUCER_COUNT=4`, `CONS
 
 | Implementation | Runtime (s) | Peak RSS (bytes) | Notes |
 | --- | ---: | ---: | --- |
-| moodycamel (ConcurrentQueue) | 181.67 | 4,218,880 | Non-blocking adapter |
-| queuebuffer (mutex queue) | 181.70 | 4,218,880 | Std::queue + mutex |
-| ringbuffer (SPSC ring) | 181.71 | 4,210,688 | Ring buffer implementation |
-| semaphore (SemRingBuffer) | skipped | - | Build or runtime skipped |
-| mpmc (Folly MPMCQueue) | skipped | - | Build or runtime skipped (requires Folly) |
+| moodycamel (ConcurrentQueue) | 0.05089521408081055 | 319,488 | Non-blocking adapter |
+| queuebuffer (mutex queue) | 0.05179309844970703 | 1,564,672 | Std::queue + mutex |
+| ringbuffer (SPSC ring) | 0.05288362503051758 | 1,851,392 | Ring buffer implementation |
+| semaphore (SemRingBuffer) | 0.050911903381347656 | 307,200 | C++20 semaphore implementation |
+| mpmc (Folly MPMCQueue) | 0.0509343147277832 | 16,384 | Folly MPMCQueue implementation |
 
 Full JSON results are available at `tests/results.json`.
 
@@ -248,9 +248,8 @@ g++ -std=c++20 -pthread SemaphoreBuffer/producer_consumer_sem.cpp -o SemaphoreBu
 Build the Folly-backed MPMC demo:
 
 ```bash
-g++ -std=c++17 -pthread -DPRODUCER_CONSUMER_USE_FOLLY \
-  MPMCQueue/producer_consumer_mpmc.cpp -o MPMCQueue/producer_consumer_mpmc \
-  $(pkg-config --cflags --libs --static libfolly)
+g++ -std=c++17 -pthread MPMCQueue/producer_consumer_mpmc.cpp -o MPMCQueue/producer_consumer_mpmc \
+  $(pkg-config --cflags --libs --static libfolly) -lfmt
 ./MPMCQueue/producer_consumer_mpmc
 ```
 

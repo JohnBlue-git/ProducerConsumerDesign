@@ -21,3 +21,8 @@ cmake-build-*/
 # Demo executables
 producer_consumer_que
 producer_consumer_rb
+
+# Python / pytest artifacts
+__pycache__/
+*.py[cod]
+tests/__pycache__/
