@@ -5,7 +5,7 @@
 #include <vector>
 #include <atomic>
 
-#include "mpmc_queue.hpp"
+#include "folly_queue.hpp"
 #include "../include/benchmark_utils.hpp"
 #include "../include/producer_counter.hpp"
 #include "../include/logging.hpp"

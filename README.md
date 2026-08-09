@@ -24,9 +24,9 @@ ProducerConsumerDesign/
 ├── SemaphoreBuffer/
 │   ├── producer_consumer_sem.cpp
 │   └── semaphore_buffer.hpp
-└── MPMCQueue/
-    ├── producer_consumer_mpmc.cpp
-    └── mpmc_queue.hpp
+└── FollyQueue/
+    ├── producer_consumer_folly.cpp
+    └── folly_queue.hpp
 ```
 
 Each design folder contains its own implementation source, while the shared shutdown helper lives at the repository root.
@@ -166,11 +166,11 @@ Automated benchmarks were run with unified parameters: `PRODUCER_COUNT=4`, `CONS
 
 | Implementation | Runtime (s) | CPU Time (s) | Operations | Peak RSS (bytes) | Notes |
 | --- | ---: | ---: | ---: | ---: | --- |
-| moodycamel (ConcurrentQueue) | 0.004565 | 0.008659 | 80000 | 282,624 | Non-blocking adapter |
+| moodycamel | 0.004565 | 0.008659 | 80000 | 282,624 | Non-blocking unbounded adapter |
 | queuebuffer (mutex queue) | 0.021116 | 0.035438 | 80000 | 282,624 | Std::queue + mutex |
 | ringbuffer (mutex ring) | 0.011830 | 0.012185 | 80000 | 270,336 | Fixed-size ring buffer |
 | semaphore (SemRingBuffer) | 0.011263 | 0.008675 | 80000 | 847,872 | C++20 semaphore implementation |
-| mpmc (Folly MPMCQueue) | 0.000697 | 0.000962 | 15273 | 1,978,368 | Folly MPMCQueue implementation (bounded adapter semantics) |
+| folly | 0.000697 | 0.000962 | 15273 | 1,978,368 | Non-blocking bounded adapter semantics |
 
 Full JSON results are available at `tests/results.json`.
 
@@ -259,9 +259,9 @@ g++ -std=c++20 -pthread SemaphoreBuffer/producer_consumer_sem.cpp -o SemaphoreBu
 Build the Folly-backed MPMC demo:
 
 ```bash
-g++ -std=c++17 -pthread MPMCQueue/producer_consumer_mpmc.cpp -o MPMCQueue/producer_consumer_mpmc \
+g++ -std=c++17 -pthread FollyQueue/producer_consumer_folly.cpp -o FollyQueue/producer_consumer_folly \
   $(pkg-config --cflags --libs --static libfolly) -lfmt
-./MPMCQueue/producer_consumer_mpmc
+./FollyQueue/producer_consumer_folly
 ```
 
 If Folly is not available and the build is attempted with the Folly flag enabled, the compile stops immediately with a clear error message telling you to install Folly or build without the flag.
@@ -271,5 +271,5 @@ If Folly is not available and the build is attempted with the Folly flag enabled
 - `RingBuffer`: fixed capacity, stronger memory control, producer can block when full.
 - `QueBuffer`: unbounded growth, simpler producer path, consumer blocks only when empty.
 - `Semaphore RingBuffer`: fixed capacity with semaphore-based coordination (C++20).
-- `MPMCQueue`: modern Folly-backed option for multi-producer, multi-consumer workloads.
+- `FollyQueue`: modern Folly-backed option for multi-producer, multi-consumer workloads.
 - All support clean termination through `close(...)`, and MPMC producer coordination is implemented through the shared helper in `producer_counter.hpp`.

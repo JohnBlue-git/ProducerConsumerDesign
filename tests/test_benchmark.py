@@ -42,7 +42,7 @@ TARGETS = {
         "out": f"{BUILD_DIR}/sem_demo",
     },
     "mpmc": {
-        "src": "MPMCQueue/producer_consumer_mpmc.cpp",
+        "src": "FollyQueue/producer_consumer_folly.cpp",
         "cflags": f"{FOLLY_PKG_CONFIG} -lfmt" if FOLLY_PKG_CONFIG else "",
         "out": f"{BUILD_DIR}/mpmc_demo",
     },
