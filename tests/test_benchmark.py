@@ -60,15 +60,11 @@ def build_target(name, info):
 
 
 def run_and_measure(cmd, timeout=None):
-    start = time.time()
-    p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     proc = psutil.Process(p.pid)
     peak_rss = 0
-    try:
-        start_cpu = sum(proc.cpu_times()[:2])
-    except psutil.NoSuchProcess:
-        start_cpu = 0.0
-    end_cpu = start_cpu
+    stdout = ""
+    stderr = ""
     try:
         while True:
             if p.poll() is not None:
@@ -77,24 +73,31 @@ def run_and_measure(cmd, timeout=None):
                 mem = proc.memory_info().rss
                 if mem > peak_rss:
                     peak_rss = mem
-                end_cpu = sum(proc.cpu_times()[:2])
             except psutil.NoSuchProcess:
                 break
             time.sleep(0.05)
+        stdout, stderr = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        p.kill()
+        stdout, stderr = p.communicate()
     except Exception:
         p.kill()
         raise
-    end = time.time()
-    try:
-        end_cpu = sum(proc.cpu_times()[:2])
-    except Exception:
-        pass
-    return {
+
+    result = {
         "returncode": p.returncode,
-        "runtime_s": end - start,
-        "cpu_s": max(0.0, end_cpu - start_cpu),
         "peak_rss_bytes": peak_rss,
     }
+
+    if stdout:
+        try:
+            parsed = json.loads(stdout.strip())
+            result.update(parsed)
+        except json.JSONDecodeError:
+            result["stdout"] = stdout.strip()
+            result["stderr"] = stderr.strip()
+
+    return result
 
 
 def test_bench_all(tmp_path):

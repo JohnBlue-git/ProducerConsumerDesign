@@ -164,15 +164,26 @@ g++ -std=c++17 -O2 -pthread -IMoodyCamelQueue MoodyCamelQueue/producer_consumer_
 
 Automated benchmarks were run with unified parameters: `PRODUCER_COUNT=4`, `CONSUMER_COUNT=4`, `ITEMS_PER_PRODUCER=20000`, `BUFFER_SIZE=1024`.
 
-| Implementation | Runtime (s) | Peak RSS (bytes) | Notes |
-| --- | ---: | ---: | --- |
-| moodycamel (ConcurrentQueue) | 0.05089521408081055 | 319,488 | Non-blocking adapter |
-| queuebuffer (mutex queue) | 0.05179309844970703 | 1,564,672 | Std::queue + mutex |
-| ringbuffer (SPSC ring) | 0.05288362503051758 | 1,851,392 | Ring buffer implementation |
-| semaphore (SemRingBuffer) | 0.050911903381347656 | 307,200 | C++20 semaphore implementation |
-| mpmc (Folly MPMCQueue) | 0.0509343147277832 | 16,384 | Folly MPMCQueue implementation |
+| Implementation | Runtime (s) | CPU Time (s) | Operations | Peak RSS (bytes) | Notes |
+| --- | ---: | ---: | ---: | ---: | --- |
+| moodycamel (ConcurrentQueue) | 0.004565 | 0.008659 | 80000 | 282,624 | Non-blocking adapter |
+| queuebuffer (mutex queue) | 0.021116 | 0.035438 | 80000 | 282,624 | Std::queue + mutex |
+| ringbuffer (mutex ring) | 0.011830 | 0.012185 | 80000 | 270,336 | Fixed-size ring buffer |
+| semaphore (SemRingBuffer) | 0.011263 | 0.008675 | 80000 | 847,872 | C++20 semaphore implementation |
+| mpmc (Folly MPMCQueue) | 0.000697 | 0.000962 | 15273 | 1,978,368 | Folly MPMCQueue implementation (bounded adapter semantics) |
 
 Full JSON results are available at `tests/results.json`.
+
+### Benchmark measurement methodology
+
+The benchmark harness measures runtime and CPU usage from inside the target executable, not from the parent Python process. This avoids attributing only the main thread's idle time or process startup overhead.
+
+- `runtime_s` is measured by `std::chrono::steady_clock` in the C++ binary from the moment all producer and consumer threads are ready until they have all completed.
+- `cpu_s` is measured by `getrusage(RUSAGE_SELF)` in the C++ binary, summing user and system time for the process. This reports the CPU time consumed by the process and its threads on Unix-like systems.
+- `operations` counts each successful enqueue operation inside the benchmark binary so the reported throughput is based on actual work performed.
+- Peak memory (`peak_rss_bytes`) is captured by the Python harness using `psutil` while the child process executes.
+
+This design separates worker startup/shutdown overhead from the actual queue push/pop performance and gives a more realistic comparison of concurrent queue throughput.
 
 ### Comparison table
 

@@ -3,8 +3,10 @@
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <atomic>
 
 #include "semaphore_buffer.hpp"
+#include "../include/benchmark_utils.hpp"
 #include "../include/producer_counter.hpp"
 #include "../include/logging.hpp"
 
@@ -14,18 +16,18 @@ void producer(
     int start_value,
     int items_per_producer,
     ProducerCountTracker& producers_left,
-    int consumer_count
+    int consumer_count,
+    bench::StartGate& gate,
+    std::atomic<uint64_t>& operations_processed
 ) {
+    gate.arrive_and_wait();
+
     for (int i = 0; i < items_per_producer; ++i) {
         int item = start_value + i;
-
-        // Simulate manufacturing time (disabled for benchmarks)
-        // std::this_thread::sleep_for(std::chrono::milliseconds(6));
-
-        // Push to ring buffer (semaphore version)
         if (!rb.push(item)) {
             break;
         }
+        operations_processed.fetch_add(1, std::memory_order_relaxed);
         PC_PRINT("[Producer %d] Pushed: %d\n", producer_id, item);
     }
 
@@ -34,14 +36,11 @@ void producer(
     }
 }
 
-void consumer(SemRingBuffer& rb, int consumer_id) {
+void consumer(SemRingBuffer& rb, int consumer_id, bench::StartGate& gate) {
+    gate.arrive_and_wait();
     int item = 0;
     while (rb.pop(item)) {
-        // Pop from ring buffer (semaphore version)
         PC_PRINT("[Consumer %d] Popped: %d\n", consumer_id, item);
-
-        // Simulate processing time (disabled for benchmarks)
-        // std::this_thread::sleep_for(std::chrono::milliseconds(9));
     }
 }
 
@@ -66,18 +65,33 @@ int main(int argc, char** argv) {
     }
 
     SemRingBuffer rb(BUFFER_SIZE);
+    bench::StartGate gate(PRODUCER_COUNT + CONSUMER_COUNT);
+    std::atomic<uint64_t> operations_processed{0};
     std::vector<std::thread> producers;
     std::vector<std::thread> consumers;
     ProducerCountTracker producers_left(PRODUCER_COUNT);
 
     for (int i = 0; i < PRODUCER_COUNT; ++i) {
         int start_value = i * ITEMS_PER_PRODUCER + 1;
-        producers.emplace_back(producer, std::ref(rb), i + 1, start_value, ITEMS_PER_PRODUCER, std::ref(producers_left), CONSUMER_COUNT);
+        producers.emplace_back(producer,
+                               std::ref(rb),
+                               i + 1,
+                               start_value,
+                               ITEMS_PER_PRODUCER,
+                               std::ref(producers_left),
+                               CONSUMER_COUNT,
+                               std::ref(gate),
+                               std::ref(operations_processed));
     }
 
     for (int i = 0; i < CONSUMER_COUNT; ++i) {
-        consumers.emplace_back(consumer, std::ref(rb), i + 1);
+        consumers.emplace_back(consumer, std::ref(rb), i + 1, std::ref(gate));
     }
+
+    gate.wait_for_all_ready();
+    auto start_wall = std::chrono::steady_clock::now();
+    double start_cpu = bench::current_cpu_seconds();
+    gate.release();
 
     for (auto& t : producers) {
         t.join();
@@ -86,6 +100,10 @@ int main(int argc, char** argv) {
         t.join();
     }
 
-    std::cout << "MPMC semaphore ring-buffer streaming finished successfully." << std::endl;
+    auto end_wall = std::chrono::steady_clock::now();
+    double end_cpu = bench::current_cpu_seconds();
+    double runtime_s = std::chrono::duration<double>(end_wall - start_wall).count();
+    double cpu_s = end_cpu - start_cpu;
+    bench::print_json_result("semaphore", runtime_s, cpu_s, operations_processed.load());
     return 0;
 }
